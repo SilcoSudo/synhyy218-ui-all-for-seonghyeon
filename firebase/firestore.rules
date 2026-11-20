@@ -1,7 +1,44 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Deny access until Firebase Auth and per-collection rules are implemented and tested.
+    // Set to the UID shown on WebUI/admin/import.html after Google login.
+    // This is a TEMPLATE and must be deployed from Firebase Console Rules.
+    // Until replaced, all browser reads/writes are denied.
+    function isImportAdmin() {
+      return request.auth != null &&
+        request.auth.uid == "REPLACE_WITH_GOOGLE_ADMIN_UID";
+    }
+
+    // Temporary restricted importer access for seven known content paths.
+    match /captions/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /events/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /events/mama_2026/captions/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /comment_platforms/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /comment_templates/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /missions/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    match /announcements/{id} {
+      allow read, create: if isImportAdmin();
+      allow update, delete: if false;
+    }
+    // Everything else denied, including users and user_progress.
     match /{document=**} {
       allow read, write: if false;
     }
