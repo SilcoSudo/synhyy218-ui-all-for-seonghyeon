@@ -1,4 +1,4 @@
-import { db, isFirebaseConfigured, observeAuth, signInWithGoogle, signOutUser } from "../firebase.js";
+import { db, observeAdmin, signInAdmin, signOutAdmin } from "./auth.js";
 import { doc, getDoc, Timestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -13,6 +13,7 @@ let currentUser = null;
 let parsed = null;
 let busy = false;
 let publishing = false;
+let signingIn = false;
 const log = message => { $("result").textContent = message; };
 const message = text => { $("preview-message").textContent = text; };
 
@@ -89,27 +90,39 @@ $("publish-event").onsubmit = async event => {
   }
 };
 
-$("login").onclick = async () => {
-  try { await signInWithGoogle(); }
-  catch (e) { log("Đăng nhập thất bại: " + (e.code || e.message)); }
+$("admin-login").onsubmit = async event => {
+  event.preventDefault();
+  if (!db || currentUser || signingIn) return;
+  signingIn = true;
+  $("login").disabled = true;
+  const passwordInput = $("admin-password");
+  const password = passwordInput.value;
+  passwordInput.value = "";
+  try {
+    await signInAdmin($("admin-username").value, password);
+  } catch {
+    $("auth-state").textContent = "Không thể đăng nhập. Hãy kiểm tra tên tài khoản và mật khẩu.";
+  } finally {
+    signingIn = false;
+    $("login").disabled = !!currentUser;
+  }
 };
 $("logout").onclick = async () => {
-  try { await signOutUser(); } catch(e) { log("Đăng xuất thất bại: " + e.message); }
+  try { await signOutAdmin(); } catch(e) { log("Đăng xuất thất bại: " + e.message); }
 };
 $("confirm-project").addEventListener("input", updateButton);
 $("ack").addEventListener("change", updateButton);
 
-if (!isFirebaseConfigured) {
+if (!db) {
   $("auth-state").textContent = "Firebase chưa cấu hình.";
 } else {
-  $("login").disabled = false;
-  observeAuth(user => {
+  observeAdmin(user => {
     currentUser = user;
     $("auth-state").textContent = user
-      ? "Đã đăng nhập: " + (user.email || user.displayName || "Google user")
+      ? "Đã đăng nhập quản trị: synhy"
       : "Chưa đăng nhập.";
-    $("auth-uid").textContent = user ? "UID (dùng trong Firestore Rules): " + user.uid : "";
-    $("login").disabled = !!user;
+    $("admin-login").hidden = !!user;
+    $("login").disabled = !!user || signingIn;
     $("logout").disabled = !user;
     updateButton();
   });

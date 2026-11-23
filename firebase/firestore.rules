@@ -1,11 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Set to the UID shown on admin/import.html after Google login.
-    // Apply changes to these rules separately from the Pages deployment.
     function isImportAdmin() {
       return request.auth != null &&
-        request.auth.uid == "izQb56U2CdgU5dZAqkqpHp0QrgM2";
+        request.auth.token.firebase.sign_in_provider == "password" &&
+        request.auth.token.eventAdmin == true;
     }
 
     match /captions/{id} {

@@ -11,16 +11,15 @@ Apply the repository's Firestore rules and composite index separately before usi
 
 ## Setup
 1. Firebase Console: create Firestore Database in **Production mode**.
-2. Firebase Console -> Authentication -> Sign-in method -> Google -> Enable. Under Authorized domains, allow the hostname from which you run the web importer, e.g. `silcosudo.github.io` for GitHub Pages.
+2. Enable Email/Password in Firebase Authentication. Create the account for `synhy@admin.silcosudo.github.io` and grant its `eventAdmin` custom claim through a trusted Firebase admin environment.
 3. Publish `WebUI/` from `main` using the GitHub Actions Pages workflow. Set Pages Source to GitHub Actions and allow `main` in the `github-pages` environment deployment rules.
-4. Open `/admin/import.html` from the published site and sign in with the Google account that will be Admin.
-5. Copy the **UID** shown there.
-6. In Firebase Console, open Firestore Database and then Rules. Review the admin UID in `firebase/firestore.rules` and publish the rules for the intended project.
+4. Apply `firebase/firestore.rules` to the intended Firebase project. Admin access requires a password session and the `eventAdmin` custom claim.
+5. Open `/admin/import.html` from the published site and sign in as `synhy`. Firebase Authentication manages the password.
 7. On the importer page choose `firestore-seed.json`; review the counts; enter `all-for-eom-seonghyeon-651f9`; confirm and import. The importer first reads existing docs, then commits only missing docs in batches. Do not run multiple imports concurrently.
 8. Verify results under Firestore Database -> Data. After import, consider removing the importer page and tightening/removing temporary create permission, then separately design read rules for your public website.
 
 ## Important
-- The interface has a frontend sign-in check, but **only deployed Firestore Security Rules enforce admin permissions**.
+- The admin session is separate from the Google sign-in session on the public site. Firestore Security Rules enforce admin permissions.
 - Never share private service-account keys or weaken rules to `allow write: if true`.
 - Import uses a best-effort read-before-write check to avoid overwriting records. Concurrent third-party changes between checking and writing require extra precautions.
 - The repository rules allow public reads of published records. Event progress and submissions use their own access rules.
