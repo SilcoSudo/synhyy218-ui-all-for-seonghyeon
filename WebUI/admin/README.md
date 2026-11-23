@@ -8,7 +8,7 @@ Use the `firestore-seed.json` file generated from **ALL FOR EOM SEONGHYEON VER 2
 ## Setup
 1. Firebase Console: create Firestore Database in **Production mode**.
 2. Firebase Console -> Authentication -> Sign-in method -> Google -> Enable. Under Authorized domains, allow the hostname from which you run the web importer, e.g. `silcosudo.github.io` for GitHub Pages.
-3. Publish the `WebUI` folder to GitHub Pages using a GitHub Actions deployment of the `WebUI/` directory. Branch-source Pages cannot directly select arbitrary `WebUI` folder. The app is currently committed only to `feature/webui-folder` and is not yet deployed.
+3. Publish `WebUI/` from `main` using the GitHub Actions Pages workflow. Set Pages Source to GitHub Actions and allow `main` in the `github-pages` environment deployment rules.
 4. Open `/admin/import.html` from the published site and sign in with the Google account that will be Admin.
 5. Copy the **UID** shown there.
 6. Firebase Console -> Firestore Database -> Rules: paste the contents of `firebase/firestore.rules` from this repo, replace `REPLACE_WITH_GOOGLE_ADMIN_UID` with your own UID, then publish those Rules. The repository file alone does not deploy rules.

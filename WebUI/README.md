@@ -9,7 +9,7 @@ Vanilla HTML/CSS/JavaScript prototype migrated from the repository source.
 - Read-only Firestore caption query is prepared in `js/services/caption.service.js`, but **not wired to the existing caption UI yet**.
 - **No server-side XP verification, role management or live counters yet**.
 - Firestore rules in `../firebase/firestore.rules` **deny all reads and writes** until the next security review and explicitly deploying new rules.
-- GitHub `main` and the original HTML remain untouched.
+- The GitHub Pages workflow publishes `WebUI/` from `main`.
 
 ## Firebase setup checklist
 

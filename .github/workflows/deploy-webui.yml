@@ -3,7 +3,7 @@ name: Deploy WebUI to GitHub Pages
 on:
   push:
     branches:
-      - feature/webui-folder
+      - main
     paths:
       - 'WebUI/**'
       - '.github/workflows/deploy-webui.yml'
