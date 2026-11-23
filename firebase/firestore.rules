@@ -6,7 +6,7 @@ service cloud.firestore {
     // Until replaced, all browser reads/writes are denied.
     function isImportAdmin() {
       return request.auth != null &&
-        request.auth.uid == "REPLACE_WITH_GOOGLE_ADMIN_UID";
+        request.auth.uid == "izQb56U2CdgU5dZAqkqpHp0QrgM2";
     }
 
     // Temporary restricted importer access for seven known content paths.
