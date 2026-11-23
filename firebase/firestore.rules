@@ -7,10 +7,35 @@ service cloud.firestore {
         request.auth.token.eventAdmin == true;
     }
 
+    function validTextItem(publicStatus) {
+      let item = request.resource.data;
+      return item.text is string && item.text.size() > 0 && item.text.size() <= 2000
+        && item.status in ["draft", "archived", publicStatus];
+    }
+
+    function validLanguage() {
+      return request.resource.data.language in ["en", "ko"];
+    }
+
+    function validOrder() {
+      return request.resource.data.order is int && request.resource.data.order >= 0;
+    }
+
+    function archiveOnly() {
+      return request.resource.data.status == "archived"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]);
+    }
+
     match /captions/{id} {
+      function validCaption() {
+        return validTextItem("approved") && validLanguage()
+          && request.resource.data.category in ["Ủng hộ", "Cảm ơn", "Chúc mừng"];
+      }
       allow read: if isImportAdmin() || resource.data.status == "approved";
-      allow create: if isImportAdmin();
-      allow update, delete: if false;
+      allow create: if isImportAdmin() && validCaption();
+      allow update: if isImportAdmin() && (archiveOnly() || (validCaption()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "language", "category", "status"])));
+      allow delete: if false;
     }
     match /caption_submissions/{id} {
       allow read: if isImportAdmin();
@@ -29,7 +54,7 @@ service cloud.firestore {
       function validEvent() {
         let event = request.resource.data;
         return event.title is string && event.title.size() > 0 && event.title.size() <= 160
-          && event.status in ["draft", "published"]
+          && event.status in ["draft", "published", "archived"]
           && event.startsAt is timestamp && event.endsAt is timestamp
           && event.startsAt < event.endsAt
           && event.requiredCopies is int && event.requiredCopies >= 1 && event.requiredCopies <= 1000
@@ -42,12 +67,11 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/events/$(id)).data;
       }
 
-      allow update: if isImportAdmin()
-        && validEvent()
+      allow update: if isImportAdmin() && (archiveOnly() || (validEvent()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           "title", "status", "startsAt", "endsAt", "requiredCopies", "xpReward",
           "badge", "tagline", "hashtags", "description", "keywords", "notes"
-        ]);
+        ])));
       allow delete: if false;
 
       function eventIsActive() {
@@ -57,10 +81,15 @@ service cloud.firestore {
       }
 
       match /captions/{captionId} {
+        function validEventCaption() {
+          return validTextItem("approved") && validLanguage() && validOrder();
+        }
         allow read: if isImportAdmin()
           || (eventData().status == "published" && resource.data.status == "approved");
-        allow create: if isImportAdmin();
-        allow update, delete: if false;
+        allow create: if isImportAdmin() && validEventCaption();
+        allow update: if isImportAdmin() && (archiveOnly() || (validEventCaption()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "language", "order", "status"])));
+        allow delete: if false;
       }
 
       match /participants/{uid} {
@@ -95,9 +124,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /comment_templates/{id} {
+      function validComment() {
+        return validTextItem("published") && validOrder()
+          && request.resource.data.platform in ["ig", "x", "ytb"];
+      }
       allow read: if isImportAdmin() || resource.data.status == "published";
-      allow create: if isImportAdmin();
-      allow update, delete: if false;
+      allow create: if isImportAdmin() && validComment();
+      allow update: if isImportAdmin() && (archiveOnly() || (validComment()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["text", "platform", "order", "status"])));
+      allow delete: if false;
     }
     match /missions/{id} {
       allow read: if isImportAdmin() || resource.data.status == "published";

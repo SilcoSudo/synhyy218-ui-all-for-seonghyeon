@@ -3,34 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Quản lý sự kiện | ALL FOR EOM</title>
+<title>Quản trị nội dung | ALL FOR EOM</title>
 <link rel="stylesheet" href="./style.css">
-<style>
-body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{margin:12px 0;padding:18px}
-.import-wrap input[type=file]{display:block;margin:12px 0;max-width:100%}
-.import-wrap button{margin:8px 8px 8px 0}.import-wrap pre{white-space:pre-wrap;word-break:break-word;background:rgba(127,127,127,.1);padding:12px;border-radius:8px}
-.import-wrap table{width:100%;border-collapse:collapse}.import-wrap td,.import-wrap th{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-.import-wrap label{display:block;margin:8px 0}
-.event-form input,.event-form textarea,.event-form select{display:block;width:100%}
-.event-form textarea{resize:vertical}
-.event-fields{display:grid;gap:0 14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
-</style>
 </head>
 <body><main class="import-wrap">
-<h1>🧡 Quản trị ALL FOR EOM</h1>
-<section class="card">
+<header class="admin-header">
+  <div><p class="project-name">ALL FOR EOM SEONGHYEON</p><h1>Quản trị nội dung</h1></div>
+  <a href="../index.html">Về website ↗</a>
+</header>
+<section class="card auth-card">
 <h2>Đăng nhập quản trị</h2>
 <p id="auth-state" aria-live="polite">Đang tải Firebase…</p>
 <form id="admin-login" method="post">
-  <label for="admin-username">Tên tài khoản</label>
-  <input id="admin-username" autocomplete="username" required>
-  <label for="admin-password">Mật khẩu</label>
-  <input id="admin-password" type="password" autocomplete="current-password" required>
+  <div class="event-fields">
+    <label>Tên tài khoản <input id="admin-username" autocomplete="username" required></label>
+    <label>Mật khẩu <input id="admin-password" type="password" autocomplete="current-password" required></label>
+  </div>
   <button id="login" type="submit" disabled>Đăng nhập</button>
 </form>
 <button id="logout" type="button" disabled>Đăng xuất</button>
 </section>
-<section class="card event-form" id="manage-events" hidden>
+<div id="workspace" hidden>
+<nav class="admin-nav" aria-label="Quản lý nội dung">
+  <button type="button" class="secondary" data-view="events" aria-pressed="true">Sự kiện</button>
+  <button type="button" class="secondary" data-view="event-captions" aria-pressed="false">Caption sự kiện</button>
+  <button type="button" class="secondary" data-view="captions" aria-pressed="false">Caption</button>
+  <button type="button" class="secondary" data-view="comments" aria-pressed="false">Bình luận</button>
+  <button type="button" class="secondary" data-view="import" aria-pressed="false">Nhập JSON</button>
+</nav>
+<section class="card event-form" id="manage-events">
   <h2>Quản lý sự kiện</h2>
   <label for="event-select">Sự kiện</label>
   <select id="event-select"><option value="">Tạo sự kiện mới</option></select>
@@ -44,7 +45,7 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
         <label>XP thưởng <input name="xpReward" type="number" min="0" max="100000" value="0" required></label>
         <label>Badge <input name="badge" maxlength="80"></label>
         <label>Trạng thái
-          <select name="status"><option value="draft">Bản nháp / Đã ẩn</option><option value="published">Đã xuất bản</option></select>
+          <select name="status"><option value="draft">Bản nháp</option><option value="published">Đã xuất bản</option><option value="archived">Đã ẩn</option></select>
         </label>
       </div>
       <label>Tagline <input name="tagline" maxlength="240"></label>
@@ -56,14 +57,52 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
       <div class="event-fields">
         <label>Ngôn ngữ caption mới <select name="language"><option value="en">English</option><option value="ko">Korean</option></select></label>
       </div>
-      <button type="submit" class="primary">Lưu sự kiện</button>
-      <button type="submit" value="publish" class="primary">Lưu và xuất bản</button>
+      <div class="actions">
+        <button type="submit" class="secondary">Lưu sự kiện</button>
+        <button type="submit" value="publish" class="primary">Lưu và xuất bản</button>
+        <button type="submit" value="archive" class="secondary danger" id="archive-event" formnovalidate hidden>Ẩn sự kiện</button>
+      </div>
     </fieldset>
   </form>
   <p id="event-result" role="status"></p>
 </section>
-<details>
-<summary>Nhập hàng loạt từ JSON</summary>
+<section class="card" id="manage-items" hidden>
+  <h2 id="items-heading"></h2>
+  <div class="event-fields">
+    <label id="item-event-field" hidden>Sự kiện <select id="item-event"></select></label>
+    <label id="item-platform-field" hidden>Nền tảng
+      <select id="item-platform"><option value="ig">Instagram</option><option value="x">X</option><option value="ytb">YouTube</option></select>
+    </label>
+    <label>Tìm nội dung <input id="item-search" type="search" placeholder="Nhập từ khóa"></label>
+    <label>Nội dung <select id="item-select"></select></label>
+  </div>
+  <form id="item-form" method="post">
+    <fieldset id="item-fields" disabled>
+      <div class="event-fields">
+        <label id="item-language-field">Ngôn ngữ
+          <select name="language"><option value="en">English</option><option value="ko">Korean</option></select>
+        </label>
+        <label id="item-category-field">Danh mục
+          <select name="category"><option>Ủng hộ</option><option>Cảm ơn</option><option>Chúc mừng</option></select>
+        </label>
+        <label id="item-target-platform-field" hidden>Nền tảng hiển thị
+          <select name="platform"><option value="ig">Instagram</option><option value="x">X</option><option value="ytb">YouTube</option></select>
+        </label>
+      </div>
+      <label>Nội dung văn bản
+        <textarea name="text" rows="7" maxlength="2000" placeholder="Nhập nội dung cần hiển thị" required></textarea>
+      </label>
+      <p id="item-visibility" class="muted"></p>
+      <div class="actions">
+        <button type="submit" class="secondary">Lưu</button>
+        <button type="submit" value="publish" class="primary">Lưu và hiển thị</button>
+        <button type="submit" value="archive" class="secondary danger" id="archive-item" formnovalidate hidden>Ẩn nội dung</button>
+      </div>
+    </fieldset>
+  </form>
+  <p id="item-result" role="status"></p>
+</section>
+<div id="manage-import" hidden>
 <section class="card">
 <h2>Chọn file JSON để xem trước</h2>
 <input id="file" type="file" accept=".json,application/json">
@@ -79,8 +118,8 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
 <button id="import" type="button" disabled>Import vào Firestore</button>
 <pre id="result" role="status" aria-live="polite">Chưa thực hiện.</pre>
 </section>
-</details>
-<p><a href="../index.html">← Về website</a></p>
+</div>
+</div>
 </main>
 <script type="module" src="./import.js"></script>
 </body></html>

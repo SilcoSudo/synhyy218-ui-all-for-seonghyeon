@@ -5,7 +5,8 @@ This importer runs in the browser using Firebase Web SDK. It does NOT need Node.
 ## Source
 Use `firebase/firestore-seed.json` from this repository. It contains 330 source-content documents across seven collection paths, including 300 MAMA captions. Demo counters and member records are excluded. If a legacy event already exists, the importer skips it. Set its `status`, `startsAt` and `endsAt` in Firestore before expecting it to appear on the site.
 
-Use the event form to create a draft, edit an existing event, add caption lines, or change its visibility. Times are in Vietnam time. To hide an event and keep participation history, choose **Bản nháp / Đã ẩn** and save.
+Use the event form to create a draft, edit an existing event, add caption lines, or change its visibility. Times are in Vietnam time. Use **Ẩn sự kiện** to hide it and keep participation history.
+The **Caption**, **Bình luận** and **Caption sự kiện** tabs let you create, edit, publish and hide individual entries. Use the platform filter for comments and the event selector for event captions. Hiding preserves the record and allows it to be published again.
 
 For bulk import, give each event a stable ID, title, start and end times, `requiredCopies`, and `xpReward`. Place approved captions under `events/<id>/captions` with unique IDs, `text`, numeric `order`, and `status: "approved"`.
 

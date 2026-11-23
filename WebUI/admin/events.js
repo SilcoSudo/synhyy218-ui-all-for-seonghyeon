@@ -1,7 +1,6 @@
 import { db } from './auth.js';
-import { collection, doc, getDocs, Timestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, doc, getDocs, Timestamp, updateDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const panel = document.getElementById('manage-events');
 const select = document.getElementById('event-select');
 const form = document.getElementById('event-form');
 const fields = document.getElementById('event-fields');
@@ -17,6 +16,7 @@ const toVietnamTime = value => value?.toMillis
 
 function fillForm(event) {
   form.reset();
+  document.getElementById('archive-event').hidden = !event || event.status === 'archived';
   if (!event) return;
   for (const key of ['title', 'requiredCopies', 'xpReward', 'badge', 'status', 'tagline']) {
     if (event[key] != null) controls.namedItem(key).value = event[key];
@@ -32,7 +32,7 @@ function fillForm(event) {
 function renderOptions(id = select.value) {
   select.replaceChildren(new Option('Tạo sự kiện mới', ''));
   for (const [eventId, event] of events) {
-    const status = event.status === 'published' ? 'Đã xuất bản' : 'Bản nháp / Đã ẩn';
+    const status = event.status === 'published' ? 'Đã xuất bản' : event.status === 'archived' ? 'Đã ẩn' : 'Bản nháp';
     select.add(new Option(`${event.title || eventId} · ${status}`, eventId));
   }
   select.value = events.has(id) ? id : '';
@@ -54,7 +54,6 @@ export async function refreshEvents() {
 export function setEventAdmin(user) {
   if (user?.uid === session?.uid) return;
   session = user ? { uid: user.uid } : null;
-  panel.hidden = !session;
   fields.disabled = !session;
   select.disabled = false;
   feedback.textContent = '';
@@ -73,6 +72,30 @@ form.addEventListener('submit', async event => {
   event.preventDefault();
   const active = session;
   if (!active || fields.disabled) return;
+  const id = select.value;
+  if (event.submitter?.value === 'archive') {
+    const current = events.get(id);
+    if (!current) return;
+    fields.disabled = true;
+    select.disabled = true;
+    try {
+      await updateDoc(doc(db, 'events', id), { status: 'archived' });
+      if (session !== active) return;
+      const archived = { ...current, status: 'archived' };
+      events.set(id, archived);
+      renderOptions(id);
+      fillForm(archived);
+      feedback.textContent = 'Đã ẩn sự kiện. Kho caption và tiến độ vẫn được lưu.';
+    } catch (error) {
+      if (session === active) feedback.textContent = 'Không ẩn được sự kiện: ' + (error.code || error.message);
+    } finally {
+      if (session === active) {
+        fields.disabled = false;
+        select.disabled = false;
+      }
+    }
+    return;
+  }
   const data = new FormData(form);
   const text = key => data.get(key).trim();
   const title = text('title');
@@ -96,7 +119,6 @@ form.addEventListener('submit', async event => {
     hashtags: text('hashtags').split(/\s+/).filter(Boolean),
     description: lines(text('description')), keywords: lines(text('keywords')), notes: lines(text('notes')),
   };
-  const id = select.value;
   const reference = id ? doc(db, 'events', id) : doc(collection(db, 'events'));
   fields.disabled = true;
   select.disabled = true;
@@ -118,6 +140,7 @@ form.addEventListener('submit', async event => {
     fillForm(values);
     const result = values.status === 'published'
       ? 'Đã xuất bản. Sự kiện hiển thị trên trang thành viên.'
+      : values.status === 'archived' ? 'Đã lưu. Sự kiện đang ẩn.'
       : 'Đã lưu bản nháp. Bấm Lưu và xuất bản để hiện trên trang thành viên.';
     feedback.textContent = captions.length ? `${result} Đã thêm ${captions.length} caption.` : result;
   } catch (error) {

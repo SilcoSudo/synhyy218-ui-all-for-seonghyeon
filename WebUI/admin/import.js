@@ -1,6 +1,7 @@
 import { db, observeAdmin, signInAdmin, signOutAdmin } from "./auth.js";
 import { doc, getDoc, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { refreshEvents, setEventAdmin } from "./events.js";
+import { showItems } from "./items.js";
 
 const $ = id => document.getElementById(id);
 const ALLOWED = new Set([
@@ -16,6 +17,21 @@ let busy = false;
 let signingIn = false;
 const log = message => { $("result").textContent = message; };
 const message = text => { $("preview-message").textContent = text; };
+
+const tabs = [...document.querySelectorAll("[data-view]")];
+function showView(view) {
+  const itemView = ["captions", "comments", "event-captions"].includes(view);
+  $("manage-events").hidden = view !== "events";
+  $("manage-import").hidden = view !== "import";
+  $("manage-items").hidden = !itemView;
+  for (const tab of tabs) tab.setAttribute("aria-pressed", String(tab.dataset.view === view));
+  showItems(itemView ? view : null);
+}
+for (const tab of tabs) {
+  tab.addEventListener("click", () => {
+    if (currentUser && tab.getAttribute("aria-pressed") !== "true") showView(tab.dataset.view);
+  });
+}
 
 function validateSeed(seed) {
   if (!seed || typeof seed !== "object" || Array.isArray(seed) || seed.schemaVersion !== 1)
@@ -50,13 +66,21 @@ function validateSeed(seed) {
         data.startsAt = Timestamp.fromMillis(start);
         data.endsAt = Timestamp.fromMillis(end);
         data.status ??= "draft";
-        if (!["draft", "published"].includes(data.status)) throw Error("Trạng thái sự kiện không hợp lệ: " + id);
+        if (!["draft", "published", "archived"].includes(data.status)) throw Error("Trạng thái sự kiện không hợp lệ: " + id);
       }
-      if (eventCaptions && (
-        typeof data.text !== "string" || !data.text.trim()
-        || !Number.isInteger(data.order) || data.order < 0
-        || !["approved", "draft"].includes(data.status)
-      )) throw Error("Caption sự kiện cần text, order và status hợp lệ: " + id);
+      if (eventCaptions || path === "captions" || path === "comment_templates") {
+        const comment = path === "comment_templates";
+        data.status ??= "draft";
+        if (eventCaptions) data.language ??= "en";
+        if (typeof data.text !== "string" || !data.text.trim() || data.text.length > 2000
+          || !["draft", "archived", comment ? "published" : "approved"].includes(data.status)
+          || (!comment && !["en", "ko"].includes(data.language))
+          || (path === "captions" && !["Ủng hộ", "Cảm ơn", "Chúc mừng"].includes(data.category))
+          || (comment && !["ig", "x", "ytb"].includes(data.platform))
+          || ((comment || eventCaptions) && (!Number.isInteger(data.order) || data.order < 0))) {
+          throw Error("Nội dung hoặc thông tin phân loại không hợp lệ: " + id);
+        }
+      }
       const segments = (path + "/" + id).split("/");
       if (segments.length % 2 !== 0) throw Error("Đường dẫn document không hợp lệ.");
       entries.push({ path: path + "/" + id, data });
@@ -100,8 +124,11 @@ if (!db) {
   $("auth-state").textContent = "Firebase chưa cấu hình.";
 } else {
   observeAdmin(user => {
+    const changed = currentUser?.uid !== user?.uid;
     currentUser = user;
     setEventAdmin(user);
+    $("workspace").hidden = !user;
+    if (changed) showView("events");
     $("auth-state").textContent = user
       ? "Đã đăng nhập quản trị: synhy"
       : "Chưa đăng nhập.";
