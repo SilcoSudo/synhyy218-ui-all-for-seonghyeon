@@ -1,6 +1,6 @@
 import { db } from './firebase.js';
 import {
-  collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
+  collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, runTransaction,
   serverTimestamp, startAfter, where,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -166,25 +166,53 @@ function mountCard(container, event, user, signal) {
       render();
     });
   }
+  return card;
 }
 
 export function mountEvents(container, user) {
-  const controller = new AbortController();
-  const { signal } = controller;
   if (!db) {
     container.textContent = 'Firebase chưa được cấu hình.';
-  } else {
-    getDocs(query(collection(db, 'events'), where('status', '==', 'published'))).then(snapshot => {
-      if (signal.aborted) return;
-      const events = snapshot.docs.map(record => ({ ...record.data(), id: record.id }))
-        .filter(event => event.startsAt?.toMillis && event.endsAt?.toMillis)
-        .sort((a, b) => b.startsAt.toMillis() - a.startsAt.toMillis());
-      container.replaceChildren();
-      if (!events.length) container.textContent = 'Chưa có sự kiện được xuất bản.';
-      for (const event of events) mountCard(container, event, user, signal);
-    }).catch(() => {
-      if (!signal.aborted) container.textContent = 'Không tải được sự kiện từ Firebase. Hãy mở lại mục Sự kiện để thử lại.';
-    });
+    return () => {};
   }
-  return () => controller.abort();
+
+  const cards = new Map();
+  function removeCard(id) {
+    const entry = cards.get(id);
+    if (!entry) return;
+    entry.controller.abort();
+    entry.card.remove();
+    cards.delete(id);
+  }
+
+  const events = query(collection(db, 'events'), where('status', '==', 'published'));
+  const unsubscribe = onSnapshot(events, snapshot => {
+    if (!cards.size) container.replaceChildren();
+    for (const change of snapshot.docChanges()) {
+      const { id } = change.doc;
+      removeCard(id);
+      if (change.type === 'removed') continue;
+      const event = { ...change.doc.data(), id };
+      if (!event.startsAt?.toMillis || !event.endsAt?.toMillis) continue;
+      const controller = new AbortController();
+      const card = mountCard(container, event, user, controller.signal);
+      cards.set(id, { controller, card, startsAt: event.startsAt.toMillis() });
+    }
+    if (!cards.size) {
+      container.textContent = 'Chưa có sự kiện được xuất bản.';
+      return;
+    }
+    let next = container.firstElementChild;
+    for (const { card } of [...cards.values()].sort((a, b) => b.startsAt - a.startsAt)) {
+      if (card !== next) container.insertBefore(card, next);
+      next = card.nextElementSibling;
+    }
+  }, () => {
+    for (const id of cards.keys()) removeCard(id);
+    container.textContent = 'Không tải được sự kiện từ Firebase. Hãy mở lại mục Sự kiện để thử lại.';
+  });
+
+  return () => {
+    unsubscribe();
+    for (const id of cards.keys()) removeCard(id);
+  };
 }

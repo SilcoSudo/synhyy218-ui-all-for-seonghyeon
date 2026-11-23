@@ -91,7 +91,8 @@ form.addEventListener('submit', async event => {
     title,
     startsAt: Timestamp.fromMillis(start), endsAt: Timestamp.fromMillis(end),
     requiredCopies: Number(data.get('requiredCopies')), xpReward: Number(data.get('xpReward')),
-    badge: text('badge'), status: text('status'), tagline: text('tagline'),
+    badge: text('badge'), status: event.submitter?.value === 'publish' ? 'published' : text('status'),
+    tagline: text('tagline'),
     hashtags: text('hashtags').split(/\s+/).filter(Boolean),
     description: lines(text('description')), keywords: lines(text('keywords')), notes: lines(text('notes')),
   };
@@ -115,7 +116,10 @@ form.addEventListener('submit', async event => {
     events.set(reference.id, { ...events.get(reference.id), ...values });
     renderOptions(reference.id);
     fillForm(values);
-    feedback.textContent = captions.length ? `Đã lưu sự kiện và thêm ${captions.length} caption.` : 'Đã lưu sự kiện.';
+    const result = values.status === 'published'
+      ? 'Đã xuất bản. Sự kiện hiển thị trên trang thành viên.'
+      : 'Đã lưu bản nháp. Bấm Lưu và xuất bản để hiện trên trang thành viên.';
+    feedback.textContent = captions.length ? `${result} Đã thêm ${captions.length} caption.` : result;
   } catch (error) {
     if (active === session) feedback.textContent = 'Không lưu được sự kiện: ' + (error.code || error.message);
   } finally {
