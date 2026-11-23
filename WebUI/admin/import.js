@@ -1,10 +1,9 @@
-import { auth, db, isFirebaseConfigured } from "../js/config/firebase.js";
-import { observeAuth, signInWithGoogle, signOutUser } from "../js/services/auth.service.js";
-import { doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { db, isFirebaseConfigured, observeAuth, signInWithGoogle, signOutUser } from "../firebase.js";
+import { doc, getDoc, Timestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const ALLOWED = new Set([
-  "captions", "events", "events/mama_2026/captions", "comment_platforms",
+  "captions", "events", "comment_platforms",
   "comment_templates", "missions", "announcements"
 ]);
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -13,6 +12,7 @@ const PROJECT_ID = "all-for-eom-seonghyeon-651f9";
 let currentUser = null;
 let parsed = null;
 let busy = false;
+let publishing = false;
 const log = message => { $("result").textContent = message; };
 const message = text => { $("preview-message").textContent = text; };
 
@@ -24,7 +24,8 @@ function validateSeed(seed) {
   const entries = [];
   const counts = {};
   for (const [path, records] of Object.entries(seed.collections)) {
-    if (!ALLOWED.has(path)) throw Error("Collection không được hỗ trợ: " + path);
+    const eventCaptions = /^events\/[A-Za-z0-9_-]{1,100}\/captions$/.test(path);
+    if (!ALLOWED.has(path) && !eventCaptions) throw Error("Collection không được hỗ trợ: " + path);
     if (!Array.isArray(records)) throw Error("Collection phải là mảng: " + path);
     counts[path] = records.length;
     for (const record of records) {
@@ -35,6 +36,24 @@ function validateSeed(seed) {
         throw Error("Document ID không hợp lệ trong " + path);
       if (!("text" in data) && !("title" in data))
         throw Error("Document thiếu nội dung trong " + path + "/" + id);
+      if (path === "events") {
+        const { startsAt, endsAt, startDate, endDate } = data;
+        const start = Date.parse(startsAt ?? (startDate + "T00:00:00+07:00"));
+        const end = endsAt === undefined
+          ? Date.parse(endDate + "T00:00:00+07:00") + 86400000
+          : Date.parse(endsAt);
+        if (!(start < end) || !Number.isInteger(data.requiredCopies) || data.requiredCopies < 1)
+          throw Error("Thời gian hoặc số caption mục tiêu không hợp lệ: " + id);
+        data.startsAt = Timestamp.fromMillis(start);
+        data.endsAt = Timestamp.fromMillis(end);
+        data.status ??= "draft";
+        if (!["draft", "published"].includes(data.status)) throw Error("Trạng thái sự kiện không hợp lệ: " + id);
+      }
+      if (eventCaptions && (
+        typeof data.text !== "string" || !data.text.trim()
+        || !Number.isInteger(data.order) || data.order < 0
+        || !["approved", "draft"].includes(data.status)
+      )) throw Error("Caption sự kiện cần text, order và status hợp lệ: " + id);
       const segments = (path + "/" + id).split("/");
       if (segments.length % 2 !== 0) throw Error("Đường dẫn document không hợp lệ.");
       entries.push({ path: path + "/" + id, data });
@@ -47,9 +66,28 @@ function validateSeed(seed) {
 }
 
 function updateButton() {
-  $("import").disabled = busy || !currentUser || !parsed ||
+  $("import").disabled = busy || publishing || !currentUser || !parsed ||
     $("confirm-project").value.trim() !== PROJECT_ID || !$("ack").checked;
+  $("publish-button").disabled = busy || publishing || !currentUser;
 }
+
+$("publish-event").onsubmit = async event => {
+  event.preventDefault();
+  if (!currentUser || !db || busy || publishing) return;
+  const id = $("publish-id").value.trim();
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) return;
+  publishing = true;
+  updateButton();
+  try {
+    await updateDoc(doc(db, "events", id), { status: "published" });
+    $("publish-result").textContent = "Đã xuất bản sự kiện " + id + ".";
+  } catch (error) {
+    $("publish-result").textContent = "Không xuất bản được: " + (error.code || error.message);
+  } finally {
+    publishing = false;
+    updateButton();
+  }
+};
 
 $("login").onclick = async () => {
   try { await signInWithGoogle(); }
@@ -109,17 +147,18 @@ $("file").addEventListener("change", async event => {
 $("import").onclick = async () => {
   updateButton();
   if ($("import").disabled || !currentUser || !db) return;
+  const { entries } = parsed;
   busy = true; updateButton();
   let created = 0, skipped = 0, scanned = 0;
   try {
     log("Đang kiểm tra document đã tồn tại…");
     // Explicitly check existing documents before writing. Existing documents are never overwritten.
     const missing = [];
-    for (const item of parsed.entries) {
+    for (const item of entries) {
       const snap = await getDoc(doc(db, item.path));
       scanned++;
       if (snap.exists()) skipped++; else missing.push(item);
-      if (scanned % 30 === 0) log("Đã kiểm tra " + scanned + "/" + parsed.entries.length);
+      if (scanned % 30 === 0) log("Đã kiểm tra " + scanned + "/" + entries.length);
     }
     // Every batch is below Firestore's 500-operation limit.
     for (let offset = 0; offset < missing.length; offset += 150) {

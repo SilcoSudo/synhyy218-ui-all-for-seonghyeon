@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Firestore JSON Import | ALL FOR EOM</title>
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="./style.css">
 <style>
 body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{margin:12px 0;padding:18px}
 .import-wrap input[type=file]{display:block;margin:12px 0;max-width:100%}
@@ -39,6 +39,15 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
 <pre id="result" role="status" aria-live="polite">Chưa thực hiện.</pre>
 </section>
 <p><a href="../index.html">← Về website</a></p>
+<section class="card">
+  <h2>Xuất bản sự kiện đã nhập</h2>
+  <form id="publish-event">
+    <label for="publish-id">ID sự kiện</label>
+    <input id="publish-id" required maxlength="100" pattern="[A-Za-z0-9_\-]+">
+    <button id="publish-button" class="primary" disabled>Xuất bản</button>
+  </form>
+  <p id="publish-result" role="status"></p>
+</section>
 </main>
 <script type="module" src="./import.js"></script>
 </body></html>

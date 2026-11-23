@@ -3,7 +3,11 @@
 This importer runs in the browser using Firebase Web SDK. It does NOT need Node.js or a service-account key.
 
 ## Source
-Use the `firestore-seed.json` file generated from **ALL FOR EOM SEONGHYEON VER 2.0 (3)(1).html** in the conversation's import package. The file contains 330 real source-content documents across seven collection paths (including nested event captions). Demo counts and fabricated member records were excluded.
+Use `firebase/firestore-seed.json` from this repository. It contains 330 source-content documents across seven collection paths, including 300 MAMA captions. Demo counters and member records are excluded. If a legacy event already exists, the importer skips it. Set its `status`, `startsAt` and `endsAt` in Firestore before expecting it to appear on the site.
+
+To prepare another event, import an `events` record with `status: "draft"`, a stable ID, title, start and end times, and `requiredCopies`. Place approved captions under `events/<id>/captions` with a unique ID, `text`, numeric `order`, and `status: "approved"`. After checking the import, publish the event by ID using the form on the same page. To append captions later, import new IDs under its caption path.
+
+Apply the repository's Firestore rules and composite index separately before using the event view against a Firebase project.
 
 ## Setup
 1. Firebase Console: create Firestore Database in **Production mode**.
@@ -11,7 +15,7 @@ Use the `firestore-seed.json` file generated from **ALL FOR EOM SEONGHYEON VER 2
 3. Publish `WebUI/` from `main` using the GitHub Actions Pages workflow. Set Pages Source to GitHub Actions and allow `main` in the `github-pages` environment deployment rules.
 4. Open `/admin/import.html` from the published site and sign in with the Google account that will be Admin.
 5. Copy the **UID** shown there.
-6. Firebase Console -> Firestore Database -> Rules: paste the contents of `firebase/firestore.rules` from this repo, replace `REPLACE_WITH_GOOGLE_ADMIN_UID` with your own UID, then publish those Rules. The repository file alone does not deploy rules.
+6. In Firebase Console, open Firestore Database and then Rules. Review the admin UID in `firebase/firestore.rules` and publish the rules for the intended project.
 7. On the importer page choose `firestore-seed.json`; review the counts; enter `all-for-eom-seonghyeon-651f9`; confirm and import. The importer first reads existing docs, then commits only missing docs in batches. Do not run multiple imports concurrently.
 8. Verify results under Firestore Database -> Data. After import, consider removing the importer page and tightening/removing temporary create permission, then separately design read rules for your public website.
 
@@ -19,5 +23,5 @@ Use the `firestore-seed.json` file generated from **ALL FOR EOM SEONGHYEON VER 2
 - The interface has a frontend sign-in check, but **only deployed Firestore Security Rules enforce admin permissions**.
 - Never share private service-account keys or weaken rules to `allow write: if true`.
 - Import uses a best-effort read-before-write check to avoid overwriting records. Concurrent third-party changes between checking and writing require extra precautions.
-- Rules are admin-only for now, so public website visitors will **not** be able to read Firestore yet. Public read rules will be designed as part of the next frontend migration.
+- The repository rules allow public reads of published records. Event progress and submissions use their own access rules.
 - This importer does not change the existing website's localStorage UI or auto-import data until you explicitly choose the file and click Import.
