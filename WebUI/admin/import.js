@@ -1,5 +1,6 @@
 import { db, observeAdmin, signInAdmin, signOutAdmin } from "./auth.js";
-import { doc, getDoc, Timestamp, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { doc, getDoc, Timestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { refreshEvents, setEventAdmin } from "./events.js";
 
 const $ = id => document.getElementById(id);
 const ALLOWED = new Set([
@@ -12,7 +13,6 @@ const PROJECT_ID = "all-for-eom-seonghyeon-651f9";
 let currentUser = null;
 let parsed = null;
 let busy = false;
-let publishing = false;
 let signingIn = false;
 const log = message => { $("result").textContent = message; };
 const message = text => { $("preview-message").textContent = text; };
@@ -43,8 +43,10 @@ function validateSeed(seed) {
         const end = endsAt === undefined
           ? Date.parse(endDate + "T00:00:00+07:00") + 86400000
           : Date.parse(endsAt);
-        if (!(start < end) || !Number.isInteger(data.requiredCopies) || data.requiredCopies < 1)
-          throw Error("Thời gian hoặc số caption mục tiêu không hợp lệ: " + id);
+        if (typeof data.title !== "string" || !data.title.trim() || data.title.length > 160
+          || !(start < end) || !Number.isInteger(data.requiredCopies) || data.requiredCopies < 1 || data.requiredCopies > 1000
+          || !Number.isInteger(data.xpReward) || data.xpReward < 0 || data.xpReward > 100000)
+          throw Error("Tên, thời gian, số caption mục tiêu hoặc XP không hợp lệ: " + id);
         data.startsAt = Timestamp.fromMillis(start);
         data.endsAt = Timestamp.fromMillis(end);
         data.status ??= "draft";
@@ -67,28 +69,9 @@ function validateSeed(seed) {
 }
 
 function updateButton() {
-  $("import").disabled = busy || publishing || !currentUser || !parsed ||
+  $("import").disabled = busy || !currentUser || !parsed ||
     $("confirm-project").value.trim() !== PROJECT_ID || !$("ack").checked;
-  $("publish-button").disabled = busy || publishing || !currentUser;
 }
-
-$("publish-event").onsubmit = async event => {
-  event.preventDefault();
-  if (!currentUser || !db || busy || publishing) return;
-  const id = $("publish-id").value.trim();
-  if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) return;
-  publishing = true;
-  updateButton();
-  try {
-    await updateDoc(doc(db, "events", id), { status: "published" });
-    $("publish-result").textContent = "Đã xuất bản sự kiện " + id + ".";
-  } catch (error) {
-    $("publish-result").textContent = "Không xuất bản được: " + (error.code || error.message);
-  } finally {
-    publishing = false;
-    updateButton();
-  }
-};
 
 $("admin-login").onsubmit = async event => {
   event.preventDefault();
@@ -118,6 +101,7 @@ if (!db) {
 } else {
   observeAdmin(user => {
     currentUser = user;
+    setEventAdmin(user);
     $("auth-state").textContent = user
       ? "Đã đăng nhập quản trị: synhy"
       : "Chưa đăng nhập.";
@@ -188,4 +172,5 @@ $("import").onclick = async () => {
     log("Import dừng. Đã tạo " + created + " document. Lỗi: " +
       (e.code || e.message) + ". Nếu là permission-denied, kiểm tra Admin UID và Security Rules.");
   } finally { busy = false; updateButton(); }
+  if (created) void refreshEvents();
 };

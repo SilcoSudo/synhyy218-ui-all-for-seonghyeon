@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Firestore JSON Import | ALL FOR EOM</title>
+<title>Quản lý sự kiện | ALL FOR EOM</title>
 <link rel="stylesheet" href="./style.css">
 <style>
 body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{margin:12px 0;padding:18px}
@@ -11,13 +11,15 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
 .import-wrap button{margin:8px 8px 8px 0}.import-wrap pre{white-space:pre-wrap;word-break:break-word;background:rgba(127,127,127,.1);padding:12px;border-radius:8px}
 .import-wrap table{width:100%;border-collapse:collapse}.import-wrap td,.import-wrap th{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .import-wrap label{display:block;margin:8px 0}
+.event-form input,.event-form textarea,.event-form select{display:block;width:100%}
+.event-form textarea{resize:vertical}
+.event-fields{display:grid;gap:0 14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
 </style>
 </head>
 <body><main class="import-wrap">
-<h1>🧡 Firestore JSON Import</h1>
-<p>Chỉ dành cho quản trị viên. Công cụ nhập dữ liệu mẫu vào Firebase; không tự tạo tài khoản hoặc cộng XP.</p>
+<h1>🧡 Quản trị ALL FOR EOM</h1>
 <section class="card">
-<h2>1. Đăng nhập quản trị</h2>
+<h2>Đăng nhập quản trị</h2>
 <p id="auth-state" aria-live="polite">Đang tải Firebase…</p>
 <form id="admin-login" method="post">
   <label for="admin-username">Tên tài khoản</label>
@@ -28,14 +30,47 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
 </form>
 <button id="logout" type="button" disabled>Đăng xuất</button>
 </section>
+<section class="card event-form" id="manage-events" hidden>
+  <h2>Quản lý sự kiện</h2>
+  <label for="event-select">Sự kiện</label>
+  <select id="event-select"><option value="">Tạo sự kiện mới</option></select>
+  <form id="event-form" method="post">
+    <fieldset id="event-fields" disabled>
+      <label>Tên sự kiện <input name="title" required maxlength="160"></label>
+      <div class="event-fields">
+        <label>Bắt đầu (giờ Việt Nam) <input name="start" type="datetime-local" step="1" required></label>
+        <label>Kết thúc (giờ Việt Nam) <input name="end" type="datetime-local" step="1" required></label>
+        <label>Số caption để hoàn thành <input name="requiredCopies" type="number" min="1" max="1000" value="1" required></label>
+        <label>XP thưởng <input name="xpReward" type="number" min="0" max="100000" value="0" required></label>
+        <label>Badge <input name="badge" maxlength="80"></label>
+        <label>Trạng thái
+          <select name="status"><option value="draft">Bản nháp / Đã ẩn</option><option value="published">Đã xuất bản</option></select>
+        </label>
+      </div>
+      <label>Tagline <input name="tagline" maxlength="240"></label>
+      <label>Hashtag (cách nhau bằng dấu cách) <input name="hashtags" maxlength="500"></label>
+      <label>Mô tả (mỗi đoạn một dòng) <textarea name="description" rows="3" maxlength="6000"></textarea></label>
+      <label>Từ khóa (mỗi mục một dòng) <textarea name="keywords" rows="2" maxlength="2000"></textarea></label>
+      <label>Lưu ý (mỗi mục một dòng) <textarea name="notes" rows="2" maxlength="3000"></textarea></label>
+      <label>Thêm caption (mỗi caption một dòng) <textarea name="captions" rows="5" maxlength="200000"></textarea></label>
+      <div class="event-fields">
+        <label>Ngôn ngữ caption mới <select name="language"><option value="en">English</option><option value="ko">Korean</option></select></label>
+      </div>
+      <button type="submit" class="primary">Lưu sự kiện</button>
+    </fieldset>
+  </form>
+  <p id="event-result" role="status"></p>
+</section>
+<details>
+<summary>Nhập hàng loạt từ JSON</summary>
 <section class="card">
-<h2>2. Chọn file JSON để xem trước</h2>
+<h2>Chọn file JSON để xem trước</h2>
 <input id="file" type="file" accept=".json,application/json">
 <p id="preview-message">Chưa chọn file.</p>
 <div id="preview"></div>
 </section>
 <section class="card">
-<h2>3. Import an toàn</h2>
+<h2>Import an toàn</h2>
 <p>Yêu cầu tài khoản được cấp quyền quản trị trong Firebase Authentication.</p>
 <label>Nhập chính xác Project ID để xác nhận
 <input id="confirm-project" type="text" autocomplete="off" placeholder="all-for-eom-seonghyeon-651f9"></label>
@@ -43,16 +78,8 @@ body{padding:18px}.import-wrap{max-width:780px;margin:0 auto}.import-wrap .card{
 <button id="import" type="button" disabled>Import vào Firestore</button>
 <pre id="result" role="status" aria-live="polite">Chưa thực hiện.</pre>
 </section>
+</details>
 <p><a href="../index.html">← Về website</a></p>
-<section class="card">
-  <h2>Xuất bản sự kiện đã nhập</h2>
-  <form id="publish-event">
-    <label for="publish-id">ID sự kiện</label>
-    <input id="publish-id" required maxlength="100" pattern="[A-Za-z0-9_\-]+">
-    <button id="publish-button" class="primary" disabled>Xuất bản</button>
-  </form>
-  <p id="publish-result" role="status"></p>
-</section>
 </main>
 <script type="module" src="./import.js"></script>
 </body></html>

@@ -26,16 +26,28 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     match /events/{id} {
+      function validEvent() {
+        let event = request.resource.data;
+        return event.title is string && event.title.size() > 0 && event.title.size() <= 160
+          && event.status in ["draft", "published"]
+          && event.startsAt is timestamp && event.endsAt is timestamp
+          && event.startsAt < event.endsAt
+          && event.requiredCopies is int && event.requiredCopies >= 1 && event.requiredCopies <= 1000
+          && event.xpReward is int && event.xpReward >= 0 && event.xpReward <= 100000;
+      }
+
       allow read: if isImportAdmin() || resource.data.status == "published";
-      allow create: if isImportAdmin();
+      allow create: if isImportAdmin() && validEvent();
       function eventData() {
         return get(/databases/$(database)/documents/events/$(id)).data;
       }
 
       allow update: if isImportAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
-        && request.resource.data.status in ["draft", "published"]
-        && resource.data.startsAt is timestamp && resource.data.endsAt is timestamp;
+        && validEvent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "title", "status", "startsAt", "endsAt", "requiredCopies", "xpReward",
+          "badge", "tagline", "hashtags", "description", "keywords", "notes"
+        ]);
       allow delete: if false;
 
       function eventIsActive() {

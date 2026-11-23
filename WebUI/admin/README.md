@@ -1,11 +1,13 @@
-# Firestore browser importer
+# Event administration and JSON import
 
 This importer runs in the browser using Firebase Web SDK. It does NOT need Node.js or a service-account key.
 
 ## Source
 Use `firebase/firestore-seed.json` from this repository. It contains 330 source-content documents across seven collection paths, including 300 MAMA captions. Demo counters and member records are excluded. If a legacy event already exists, the importer skips it. Set its `status`, `startsAt` and `endsAt` in Firestore before expecting it to appear on the site.
 
-To prepare another event, import an `events` record with `status: "draft"`, a stable ID, title, start and end times, and `requiredCopies`. Place approved captions under `events/<id>/captions` with a unique ID, `text`, numeric `order`, and `status: "approved"`. After checking the import, publish the event by ID using the form on the same page. To append captions later, import new IDs under its caption path.
+Use the event form to create a draft, edit an existing event, add caption lines, or change its visibility. Times are in Vietnam time. To hide an event and keep participation history, choose **Bản nháp / Đã ẩn** and save.
+
+For bulk import, give each event a stable ID, title, start and end times, `requiredCopies`, and `xpReward`. Place approved captions under `events/<id>/captions` with unique IDs, `text`, numeric `order`, and `status: "approved"`.
 
 Apply the repository's Firestore rules and composite index separately before using the event view against a Firebase project.
 
